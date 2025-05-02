@@ -1,0 +1,118 @@
+{
+	"name": "exai-multi-provider",
+	"displayName": "ExAI Multi-Provider Framework",
+	"description": "Framework for managing multiple AI providers in ExAI",
+	"version": "0.1.0",
+	"publisher": "ms-vscode",
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.75.0"
+	},
+	"categories": [
+		"Programming Languages"
+	],
+	"contributes": {
+		"configuration": {
+			"title": "ExAI Multi-Provider Framework",
+			"properties": {
+				"exai.multiProvider.enable": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable the multi-provider framework"
+				},
+				"exai.multiProvider.selectionStrategy": {
+					"type": "string",
+					"enum": [
+						"firstAvailable",
+						"roundRobin",
+						"lowestLatency",
+						"random"
+					],
+					"default": "roundRobin",
+					"description": "Strategy for selecting providers",
+					"enumDescriptions": [
+						"Use the first available provider that matches the criteria",
+						"Round-robin between all available providers",
+						"Select the provider with the lowest latency",
+						"Random selection among available providers"
+					]
+				},
+				"exai.multiProvider.errorHandlingStrategy": {
+					"type": "string",
+					"enum": [
+						"fail",
+						"fallback",
+						"retry"
+					],
+					"default": "fallback",
+					"description": "Strategy for handling provider errors",
+					"enumDescriptions": [
+						"Return the error from the failed provider",
+						"Try to use a fallback provider if available",
+						"Retry with the same provider"
+					]
+				},
+				"exai.multiProvider.requestTimeoutMs": {
+					"type": "number",
+					"default": 60000,
+					"description": "Timeout for provider requests in milliseconds"
+				},
+				"exai.multiProvider.maxRetries": {
+					"type": "number",
+					"default": 3,
+					"description": "Maximum number of retries when using the Retry error handling strategy"
+				},
+				"exai.multiProvider.providers": {
+					"type": "object",
+					"default": {},
+					"description": "Provider configurations",
+					"properties": {
+						"openai": {
+							"type": "object",
+							"properties": {
+								"apiKey": {
+									"type": "string",
+									"description": "OpenAI API key"
+								},
+								"baseUrl": {
+									"type": "string",
+									"description": "Base URL for OpenAI API (optional)"
+								},
+								"organizationId": {
+									"type": "string",
+									"description": "OpenAI organization ID (optional)"
+								}
+							}
+						},
+						"claude": {
+							"type": "object",
+							"properties": {
+								"apiKey": {
+									"type": "string",
+									"description": "Anthropic API key"
+								},
+								"baseUrl": {
+									"type": "string",
+									"description": "Base URL for Anthropic API (optional)"
+								}
+							}
+						},
+						"perplexity": {
+							"type": "object",
+							"properties": {
+								"apiKey": {
+									"type": "string",
+									"description": "Perplexity API key"
+								},
+								"baseUrl": {
+									"type": "string",
+									"description": "Base URL for Perplexity API (optional)"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
