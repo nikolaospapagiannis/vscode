@@ -15,11 +15,11 @@ export interface IProviderManager {
 	unregisterProvider(providerId: string): void;
 	getProvider(providerId: string): AIProvider | undefined;
 	getAllProviders(): AIProvider[];
-	
+
 	// Provider selection
 	getDefaultProvider(): AIProvider;
 	getBestProviderForTask(task: AITask, requirements?: TaskRequirements): AIProvider;
-	
+
 	// Operations
 	executeWithProvider<T>(providerId: string, operation: (provider: AIProvider) => Promise<T>): Promise<T>;
 	executeWithFallback<T>(operation: (provider: AIProvider) => Promise<T>, requirements?: TaskRequirements): Promise<T>;
@@ -44,9 +44,9 @@ export class ProviderManager implements IProviderManager {
 		if (this.providers.has(provider.id)) {
 			throw new Error(`Provider with ID '${provider.id}' is already registered`);
 		}
-		
+
 		this.providers.set(provider.id, provider);
-		
+
 		// If this is the first provider or no default is set, make it the default
 		if (!this.defaultProviderId || this.providers.size === 1) {
 			this.defaultProviderId = provider.id;
@@ -61,9 +61,9 @@ export class ProviderManager implements IProviderManager {
 		if (!this.providers.has(providerId)) {
 			return; // Provider doesn't exist, nothing to do
 		}
-		
+
 		this.providers.delete(providerId);
-		
+
 		// If we removed the default provider, set a new default if any providers remain
 		if (this.defaultProviderId === providerId && this.providers.size > 0) {
 			this.defaultProviderId = this.providers.keys().next().value;
@@ -98,7 +98,7 @@ export class ProviderManager implements IProviderManager {
 		if (!this.defaultProviderId || !this.providers.has(this.defaultProviderId)) {
 			throw new Error('No default provider available');
 		}
-		
+
 		return this.providers.get(this.defaultProviderId)!;
 	}
 
@@ -111,7 +111,7 @@ export class ProviderManager implements IProviderManager {
 		if (!this.providers.has(providerId)) {
 			throw new Error(`Cannot set default provider: Provider with ID '${providerId}' is not registered`);
 		}
-		
+
 		this.defaultProviderId = providerId;
 	}
 
@@ -126,7 +126,7 @@ export class ProviderManager implements IProviderManager {
 		if (this.providers.size === 0) {
 			throw new Error('No providers registered');
 		}
-		
+
 		// Filter providers by basic capability for the task
 		const capableProviders = this.getAllProviders().filter(provider => {
 			switch (task) {
@@ -139,26 +139,26 @@ export class ProviderManager implements IProviderManager {
 				default: return false;
 			}
 		});
-		
+
 		if (capableProviders.length === 0) {
 			throw new Error(`No providers support the requested task: ${task}`);
 		}
-		
+
 		if (!requirements) {
 			// If no specific requirements, return the first capable provider
 			return capableProviders[0];
 		}
-		
+
 		// Filter by additional requirements
 		let matchingProviders = capableProviders;
-		
+
 		// Filter by context window if specified
 		if (requirements.minContextWindow) {
 			matchingProviders = matchingProviders.filter(
 				provider => provider.capabilities.contextWindowSize >= requirements.minContextWindow!
 			);
 		}
-		
+
 		// Filter by required capabilities if specified
 		if (requirements.requiredCapabilities && requirements.requiredCapabilities.length > 0) {
 			matchingProviders = matchingProviders.filter(provider => {
@@ -172,22 +172,22 @@ export class ProviderManager implements IProviderManager {
 				});
 			});
 		}
-		
+
 		if (matchingProviders.length === 0) {
 			throw new Error(`No providers meet all the requirements for task: ${task}`);
 		}
-		
+
 		// If specific model is preferred, try to find a provider with that model
 		if (requirements.preferredModel) {
 			const modelProviders = matchingProviders.filter(
 				provider => provider.capabilities.supportedModels.includes(requirements.preferredModel!)
 			);
-			
+
 			if (modelProviders.length > 0) {
 				matchingProviders = modelProviders;
 			}
 		}
-		
+
 		// TODO: Add more sophisticated provider selection based on cost, latency, etc.
 		// For now, just return the first matching provider
 		return matchingProviders[0];
@@ -205,7 +205,7 @@ export class ProviderManager implements IProviderManager {
 		if (!provider) {
 			throw new Error(`Provider with ID '${providerId}' not found`);
 		}
-		
+
 		return operation(provider);
 	}
 
@@ -223,14 +223,14 @@ export class ProviderManager implements IProviderManager {
 		// Get all providers, sorted by priority
 		// For now, we just use the ordering of the providers in the map
 		const providers = this.getAllProviders();
-		
+
 		if (providers.length === 0) {
 			throw new Error('No providers registered to execute operation');
 		}
-		
+
 		// Try each provider in order until one succeeds
 		const errors: Error[] = [];
-		
+
 		for (const provider of providers) {
 			try {
 				return await operation(provider);
@@ -240,7 +240,7 @@ export class ProviderManager implements IProviderManager {
 				console.error(`Provider ${provider.id} failed:`, error);
 			}
 		}
-		
+
 		// If we get here, all providers failed
 		throw new Error(`All providers failed to execute operation: ${errors.map(e => e.message).join(', ')}`);
 	}

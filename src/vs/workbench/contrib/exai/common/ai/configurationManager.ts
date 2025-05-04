@@ -51,11 +51,11 @@ export interface IConfigurationManager {
 	// Configuration access
 	getProviderConfiguration(providerId: string): ProviderConfiguration;
 	updateProviderConfiguration(providerId: string, config: Partial<ProviderConfiguration>): Promise<void>;
-	
+
 	// API key management
 	getApiKey(providerId: string): Promise<string | undefined>;
 	setApiKey(providerId: string, apiKey: string): Promise<void>;
-	
+
 	// Provider preferences
 	getProviderPreferences(): ProviderPreferences;
 	setProviderPreferences(preferences: Partial<ProviderPreferences>): Promise<void>;
@@ -68,7 +68,7 @@ export class ConfigurationManager implements IConfigurationManager {
 	private static readonly CONFIG_KEY_PREFIX = 'exai.providers';
 	private static readonly API_KEY_PREFIX = 'exai.apiKey';
 	private static readonly PREFERENCES_KEY = 'exai.providerPreferences';
-	
+
 	private defaultConfig: ProviderConfiguration = {
 		enabled: true,
 		models: {
@@ -83,7 +83,7 @@ export class ConfigurationManager implements IConfigurationManager {
 			maxCostPerDay: 5.0
 		}
 	};
-	
+
 	private defaultPreferences: ProviderPreferences = {
 		defaultProvider: 'openai',
 		providerPriority: ['openai', 'claude', 'perplexity', 'copilot'],
@@ -97,7 +97,7 @@ export class ConfigurationManager implements IConfigurationManager {
 		@IStorageService private readonly storageService: IStorageService,
 		@ISecretStorageService private readonly secretStorageService: ISecretStorageService,
 		@ILogService private readonly logService: ILogService
-	) {}
+	) { }
 
 	/**
 	 * Get the configuration for a provider.
@@ -107,7 +107,7 @@ export class ConfigurationManager implements IConfigurationManager {
 	getProviderConfiguration(providerId: string): ProviderConfiguration {
 		const configKey = `${ConfigurationManager.CONFIG_KEY_PREFIX}.${providerId}`;
 		const userConfig = this.configurationService.getValue<Partial<ProviderConfiguration>>(configKey) || {};
-		
+
 		return {
 			...this.defaultConfig,
 			...userConfig
@@ -122,19 +122,19 @@ export class ConfigurationManager implements IConfigurationManager {
 	async updateProviderConfiguration(providerId: string, config: Partial<ProviderConfiguration>): Promise<void> {
 		const configKey = `${ConfigurationManager.CONFIG_KEY_PREFIX}.${providerId}`;
 		const currentConfig = this.getProviderConfiguration(providerId);
-		
+
 		// Merge the new config with the current one
 		const newConfig = {
 			...currentConfig,
 			...config
 		};
-		
+
 		// API keys are stored separately in secure storage
 		if (newConfig.apiKey !== undefined) {
 			await this.setApiKey(providerId, newConfig.apiKey);
 			delete newConfig.apiKey;
 		}
-		
+
 		// Update the configuration
 		await this.configurationService.updateValue(configKey, newConfig);
 	}
@@ -175,7 +175,7 @@ export class ConfigurationManager implements IConfigurationManager {
 	 */
 	getProviderPreferences(): ProviderPreferences {
 		const storedPreferences = this.configurationService.getValue<Partial<ProviderPreferences>>(ConfigurationManager.PREFERENCES_KEY) || {};
-		
+
 		return {
 			...this.defaultPreferences,
 			...storedPreferences
@@ -188,12 +188,12 @@ export class ConfigurationManager implements IConfigurationManager {
 	 */
 	async setProviderPreferences(preferences: Partial<ProviderPreferences>): Promise<void> {
 		const currentPreferences = this.getProviderPreferences();
-		
+
 		const newPreferences = {
 			...currentPreferences,
 			...preferences
 		};
-		
+
 		await this.configurationService.updateValue(ConfigurationManager.PREFERENCES_KEY, newPreferences);
 	}
 }

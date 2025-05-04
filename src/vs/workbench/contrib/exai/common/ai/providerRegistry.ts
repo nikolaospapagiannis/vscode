@@ -17,12 +17,12 @@ export interface IProviderRegistry {
 	registerProvider(providerClass: any): IDisposable;
 	registerStaticProvider(provider: AIProvider): IDisposable;
 	unregisterProvider(providerId: string): void;
-	
+
 	// Provider discovery
 	getProvider(providerId: string): AIProvider | undefined;
 	getAllProviders(): AIProvider[];
 	getProvidersByCapability(capability: string): AIProvider[];
-	
+
 	// Provider status events
 	readonly onProviderRegistered: Event<AIProvider>;
 	readonly onProviderUnregistered: Event<string>;
@@ -44,21 +44,21 @@ export interface ProviderStatus {
 export class ProviderRegistry implements IProviderRegistry {
 	private readonly providers: Map<string, AIProvider> = new Map();
 	private readonly providerStatus: Map<string, ProviderStatus> = new Map();
-	
+
 	// Events
 	private readonly _onProviderRegistered = new Emitter<AIProvider>();
 	private readonly _onProviderUnregistered = new Emitter<string>();
 	private readonly _onProviderStatusChanged = new Emitter<{ providerId: string, status: ProviderStatus }>();
-	
+
 	readonly onProviderRegistered: Event<AIProvider> = this._onProviderRegistered.event;
 	readonly onProviderUnregistered: Event<string> = this._onProviderUnregistered.event;
 	readonly onProviderStatusChanged: Event<{ providerId: string, status: ProviderStatus }> = this._onProviderStatusChanged.event;
-	
+
 	constructor(
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@ILogService private readonly logService: ILogService
-	) {}
-	
+	) { }
+
 	/**
 	 * Register a provider class that will be instantiated by the registry.
 	 * @param providerClass The provider class to register
@@ -73,7 +73,7 @@ export class ProviderRegistry implements IProviderRegistry {
 			throw new Error(`Failed to instantiate provider: ${(error as Error).message}`);
 		}
 	}
-	
+
 	/**
 	 * Register an already instantiated provider.
 	 * @param provider The provider instance to register
@@ -83,19 +83,19 @@ export class ProviderRegistry implements IProviderRegistry {
 		if (this.providers.has(provider.id)) {
 			throw new Error(`Provider with ID '${provider.id}' is already registered`);
 		}
-		
+
 		this.providers.set(provider.id, provider);
-		
+
 		// Initialize provider status
 		this.providerStatus.set(provider.id, {
 			isAvailable: true,
 			isAuthenticated: provider.isAuthenticated()
 		});
-		
+
 		// Emit registration event
 		this._onProviderRegistered.fire(provider);
 		this.logService.info(`Provider registered: ${provider.name} (${provider.id})`);
-		
+
 		// Return a disposable to unregister the provider
 		return {
 			dispose: () => {
@@ -103,7 +103,7 @@ export class ProviderRegistry implements IProviderRegistry {
 			}
 		};
 	}
-	
+
 	/**
 	 * Unregister a provider by its ID.
 	 * @param providerId The ID of the provider to unregister
@@ -112,15 +112,15 @@ export class ProviderRegistry implements IProviderRegistry {
 		if (!this.providers.has(providerId)) {
 			return; // Provider doesn't exist, nothing to do
 		}
-		
+
 		this.providers.delete(providerId);
 		this.providerStatus.delete(providerId);
-		
+
 		// Emit unregistration event
 		this._onProviderUnregistered.fire(providerId);
 		this.logService.info(`Provider unregistered: ${providerId}`);
 	}
-	
+
 	/**
 	 * Get a provider by its ID.
 	 * @param providerId The ID of the provider to retrieve
@@ -129,7 +129,7 @@ export class ProviderRegistry implements IProviderRegistry {
 	getProvider(providerId: string): AIProvider | undefined {
 		return this.providers.get(providerId);
 	}
-	
+
 	/**
 	 * Get all registered providers.
 	 * @returns Array of all providers
@@ -137,7 +137,7 @@ export class ProviderRegistry implements IProviderRegistry {
 	getAllProviders(): AIProvider[] {
 		return Array.from(this.providers.values());
 	}
-	
+
 	/**
 	 * Get providers that support a specific capability.
 	 * @param capability The capability to filter by
@@ -157,7 +157,7 @@ export class ProviderRegistry implements IProviderRegistry {
 			}
 		});
 	}
-	
+
 	/**
 	 * Update the status of a provider.
 	 * @param providerId The ID of the provider
@@ -165,21 +165,21 @@ export class ProviderRegistry implements IProviderRegistry {
 	 */
 	updateProviderStatus(providerId: string, status: Partial<ProviderStatus>): void {
 		const currentStatus = this.providerStatus.get(providerId);
-		
+
 		if (!currentStatus) {
 			this.logService.warn(`Attempted to update status of unregistered provider: ${providerId}`);
 			return;
 		}
-		
+
 		const newStatus: ProviderStatus = {
 			...currentStatus,
 			...status
 		};
-		
+
 		this.providerStatus.set(providerId, newStatus);
 		this._onProviderStatusChanged.fire({ providerId, status: newStatus });
 	}
-	
+
 	/**
 	 * Get the current status of a provider.
 	 * @param providerId The ID of the provider
