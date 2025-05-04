@@ -30,7 +30,17 @@ export enum ProviderSelectionStrategy {
 	/**
 	 * Random selection between available providers
 	 */
-	Random = 'random'
+	Random = 'random',
+	
+	/**
+	 * Select provider based on estimated cost (lowest cost first)
+	 */
+	CostBased = 'costBased',
+	
+	/**
+	 * Select provider based on capabilities required for the task
+	 */
+	CapabilityBased = 'capabilityBased'
 }
 
 /**
@@ -229,6 +239,7 @@ export class MultiProviderManager extends Disposable {
 		// Apply the selection strategy
 		switch (this._config.selectionStrategy) {
 			case ProviderSelectionStrategy.FirstAvailable:
+				// Simple strategy - just use the first provider
 				selectedProvider = providers[0];
 				break;
 
@@ -240,8 +251,31 @@ export class MultiProviderManager extends Disposable {
 
 			case ProviderSelectionStrategy.LowestLatency:
 				// Find the provider with the lowest average response time
-				// If we have registry data, we could use that to find the fastest provider
-				// For now, just use the first one
+				// Get stats from the registry
+				const providerStats = this._getProviderStats();
+				
+				// Sort providers by response time if we have stats
+				if (providerStats.size > 0) {
+					// Filter to only providers we have stats for
+					const providersWithStats = providers.filter(p => providerStats.has(p.info.id));
+					
+					if (providersWithStats.length > 0) {
+						// Sort by average response time
+						providersWithStats.sort((a, b) => {
+							const statsA = providerStats.get(a.info.id);
+							const statsB = providerStats.get(b.info.id);
+							
+							// Compare average response times
+							return (statsA?.avgResponseTimeMs || Infinity) - (statsB?.avgResponseTimeMs || Infinity);
+						});
+						
+						// Use the fastest provider
+						selectedProvider = providersWithStats[0];
+						break;
+					}
+				}
+				
+				// If we don't have stats, fall back to first available
 				selectedProvider = providers[0];
 				break;
 
@@ -249,6 +283,73 @@ export class MultiProviderManager extends Disposable {
 				// Select a random provider
 				const randomIndex = Math.floor(Math.random() * providers.length);
 				selectedProvider = providers[randomIndex];
+				break;
+				
+			case ProviderSelectionStrategy.CostBased:
+				// Implementation for cost-based selection
+				// This would require providers to expose pricing information
+				// Here we'll use a simple heuristic: assume larger models cost more
+				
+				// Sort by pricing tier and model capabilities
+				const sortedByCost = [...providers].sort((a, b) => {
+					// First, compare by pricing tier (free < paid < enterprise)
+					const tierA = this._getPricingTierValue(a);
+					const tierB = this._getPricingTierValue(b);
+					
+					if (tierA !== tierB) {
+						return tierA - tierB;
+					}
+					
+					// Then compare by context window size (smaller is cheaper)
+					const modelA = a.info.availableModels.find(m => m.id === (selector?.requiredCapabilities?.model || a.info.availableModels[0].id));
+					const modelB = b.info.availableModels.find(m => m.id === (selector?.requiredCapabilities?.model || b.info.availableModels[0].id));
+					
+					return (modelA?.maxContextLength || 0) - (modelB?.maxContextLength || 0);
+				});
+				
+				// Use the cheapest provider
+				selectedProvider = sortedByCost[0];
+				break;
+				
+			case ProviderSelectionStrategy.CapabilityBased:
+				// Implementation for capability-based selection
+				// Select provider based on capabilities needed for the task
+				
+				// If no specific capabilities needed, use first available
+				if (!selector?.requiredCapabilities) {
+					selectedProvider = providers[0];
+					break;
+				}
+				
+				// Score providers based on how well they match the requirements
+				const scoredProviders = providers.map(provider => {
+					let score = 0;
+					
+					// Check each required capability
+					if (selector.requiredCapabilities.supportsImages && this._providerSupportsImages(provider)) {
+						score += 10;
+					}
+					
+					if (selector.requiredCapabilities.supportsToolCalling && this._providerSupportsToolCalling(provider)) {
+						score += 10;
+					}
+					
+					if (selector.requiredCapabilities.supportsStreaming && this._providerSupportsStreaming(provider)) {
+						score += 5;
+					}
+					
+					// Add score based on context window size
+					const defaultModel = provider.info.availableModels[0];
+					score += Math.min(defaultModel.maxContextLength / 10000, 10);
+					
+					return { provider, score };
+				});
+				
+				// Sort by score (descending)
+				scoredProviders.sort((a, b) => b.score - a.score);
+				
+				// Use the highest-scoring provider
+				selectedProvider = scoredProviders[0].provider;
 				break;
 
 			default:
@@ -266,6 +367,73 @@ export class MultiProviderManager extends Disposable {
 		});
 
 		return selectedProvider;
+	}
+	
+	/**
+	 * Get provider statistics from the registry
+	 */
+	private _getProviderStats(): Map<string, { avgResponseTimeMs: number, successRate: number }> {
+		const statsMap = new Map<string, { avgResponseTimeMs: number, successRate: number }>();
+		
+		// Get provider stats from the registry through the provider service
+		if ('getRegistry' in this._providerService) {
+			const registry = (this._providerService as any).getRegistry();
+			
+			if (registry && typeof registry.getEntries === 'function') {
+				const entries = registry.getEntries();
+				
+				for (const [id, entry] of entries) {
+					if (entry.stats) {
+						statsMap.set(id, {
+							avgResponseTimeMs: entry.stats.avgResponseTimeMs,
+							successRate: entry.stats.successfulRequests / (entry.stats.successfulRequests + entry.stats.failedRequests)
+						});
+					}
+				}
+			}
+		}
+		
+		return statsMap;
+	}
+	
+	/**
+	 * Get numeric value for a pricing tier for sorting
+	 */
+	private _getPricingTierValue(provider: IAIProvider): number {
+		// Get the pricing tier of the default model
+		const defaultModel = provider.info.availableModels[0];
+		
+		// Convert to numeric value for comparison
+		switch (defaultModel.pricingTier) {
+			case 'free': return 1;
+			case 'paid': return 2;
+			case 'enterprise': return 3;
+			default: return 2; // Default to "paid" if unknown
+		}
+	}
+	
+	/**
+	 * Check if a provider supports images
+	 */
+	private _providerSupportsImages(provider: IAIProvider): boolean {
+		// Check if any model supports images
+		return provider.info.availableModels.some(model => model.capabilities.supportsImages);
+	}
+	
+	/**
+	 * Check if a provider supports tool calling
+	 */
+	private _providerSupportsToolCalling(provider: IAIProvider): boolean {
+		// Check if any model supports tool calling
+		return provider.info.availableModels.some(model => model.capabilities.supportsToolCalling);
+	}
+	
+	/**
+	 * Check if a provider supports streaming
+	 */
+	private _providerSupportsStreaming(provider: IAIProvider): boolean {
+		// Check if any model supports streaming
+		return provider.info.availableModels.some(model => model.capabilities.supportsStreaming);
 	}
 
 	/**

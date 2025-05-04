@@ -2,13 +2,14 @@
 	"name": "exai-multi-provider",
 	"displayName": "ExAI Multi-Provider Framework",
 	"description": "Framework for managing multiple AI providers in ExAI",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"publisher": "ms-vscode",
 	"license": "MIT",
 	"engines": {
 		"vscode": "^1.75.0"
 	},
 	"categories": [
+		"AI",
 		"Programming Languages"
 	],
 	"contributes": {
@@ -18,7 +19,8 @@
 				"exai.multiProvider.enable": {
 					"type": "boolean",
 					"default": true,
-					"description": "Enable the multi-provider framework"
+					"description": "Enable the multi-provider framework",
+					"scope": "application"
 				},
 				"exai.multiProvider.selectionStrategy": {
 					"type": "string",
@@ -26,15 +28,19 @@
 						"firstAvailable",
 						"roundRobin",
 						"lowestLatency",
-						"random"
+						"random",
+						"costBased",
+						"capabilityBased"
 					],
-					"default": "roundRobin",
+					"default": "capabilityBased",
 					"description": "Strategy for selecting providers",
 					"enumDescriptions": [
 						"Use the first available provider that matches the criteria",
 						"Round-robin between all available providers",
 						"Select the provider with the lowest latency",
-						"Random selection among available providers"
+						"Random selection among available providers",
+						"Select the provider with the lowest estimated cost",
+						"Select the provider that best matches the required capabilities"
 					]
 				},
 				"exai.multiProvider.errorHandlingStrategy": {
@@ -55,12 +61,60 @@
 				"exai.multiProvider.requestTimeoutMs": {
 					"type": "number",
 					"default": 60000,
-					"description": "Timeout for provider requests in milliseconds"
+					"description": "Timeout for provider requests in milliseconds",
+					"minimum": 1000,
+					"maximum": 600000
 				},
 				"exai.multiProvider.maxRetries": {
 					"type": "number",
 					"default": 3,
-					"description": "Maximum number of retries when using the Retry error handling strategy"
+					"description": "Maximum number of retries when using the Retry error handling strategy",
+					"minimum": 0,
+					"maximum": 10
+				},
+				"exai.multiProvider.defaultProvider": {
+					"type": "string",
+					"enum": [
+						"auto",
+						"openai",
+						"claude",
+						"perplexity"
+					],
+					"default": "auto",
+					"description": "Default provider to use when multiple are available",
+					"enumDescriptions": [
+						"Automatically select the best provider based on the selection strategy",
+						"Use OpenAI as the default provider",
+						"Use Claude as the default provider",
+						"Use Perplexity as the default provider"
+					]
+				},
+				"exai.multiProvider.contextManagement.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable context management across providers"
+				},
+				"exai.multiProvider.contextManagement.maxContextSize": {
+					"type": "number",
+					"default": 100000,
+					"description": "Maximum context size in tokens",
+					"minimum": 1000,
+					"maximum": 1000000
+				},
+				"exai.multiProvider.contextManagement.strategy": {
+					"type": "string",
+					"enum": [
+						"adaptive",
+						"fixedSize",
+						"sliding"
+					],
+					"default": "adaptive",
+					"description": "Strategy for managing context across providers",
+					"enumDescriptions": [
+						"Adapt context size based on the provider's capabilities",
+						"Use a fixed context size for all providers",
+						"Use a sliding window approach for context management"
+					]
 				},
 				"exai.multiProvider.providers": {
 					"type": "object",
@@ -70,49 +124,175 @@
 						"openai": {
 							"type": "object",
 							"properties": {
+								"enabled": {
+									"type": "boolean",
+									"default": true,
+									"description": "Enable the OpenAI provider"
+								},
 								"apiKey": {
 									"type": "string",
 									"description": "OpenAI API key"
 								},
 								"baseUrl": {
 									"type": "string",
-									"description": "Base URL for OpenAI API (optional)"
+									"default": "https://api.openai.com/v1",
+									"description": "Base URL for OpenAI API"
 								},
 								"organizationId": {
 									"type": "string",
 									"description": "OpenAI organization ID (optional)"
+								},
+								"defaultModel": {
+									"type": "string",
+									"default": "gpt-4-turbo",
+									"description": "Default model to use for OpenAI provider",
+									"enum": [
+										"gpt-4-turbo",
+										"gpt-4",
+										"gpt-3.5-turbo",
+										"gpt-4-vision-preview"
+									]
+								},
+								"costLimitPerDay": {
+									"type": "number",
+									"default": 10,
+									"description": "Maximum cost per day in USD"
 								}
 							}
 						},
 						"claude": {
 							"type": "object",
 							"properties": {
+								"enabled": {
+									"type": "boolean",
+									"default": true,
+									"description": "Enable the Claude provider"
+								},
 								"apiKey": {
 									"type": "string",
 									"description": "Anthropic API key"
 								},
 								"baseUrl": {
 									"type": "string",
-									"description": "Base URL for Anthropic API (optional)"
+									"default": "https://api.anthropic.com",
+									"description": "Base URL for Anthropic API"
+								},
+								"defaultModel": {
+									"type": "string",
+									"default": "claude-3-sonnet",
+									"description": "Default model to use for Claude provider",
+									"enum": [
+										"claude-3-opus",
+										"claude-3-sonnet",
+										"claude-3-haiku",
+										"claude-2.1",
+										"claude-2.0"
+									]
+								},
+								"costLimitPerDay": {
+									"type": "number",
+									"default": 10,
+									"description": "Maximum cost per day in USD"
 								}
 							}
 						},
 						"perplexity": {
 							"type": "object",
 							"properties": {
+								"enabled": {
+									"type": "boolean",
+									"default": true,
+									"description": "Enable the Perplexity provider"
+								},
 								"apiKey": {
 									"type": "string",
 									"description": "Perplexity API key"
 								},
 								"baseUrl": {
 									"type": "string",
-									"description": "Base URL for Perplexity API (optional)"
+									"default": "https://api.perplexity.ai",
+									"description": "Base URL for Perplexity API"
+								},
+								"defaultModel": {
+									"type": "string",
+									"default": "pplx-70b-online",
+									"description": "Default model to use for Perplexity provider",
+									"enum": [
+										"pplx-70b-online",
+										"pplx-7b-online",
+										"sonar-medium-online",
+										"sonar-small-online",
+										"codellama-70b-instruct",
+										"llama-3-70b-instruct"
+									]
+								},
+								"costLimitPerDay": {
+									"type": "number",
+									"default": 5,
+									"description": "Maximum cost per day in USD"
 								}
 							}
 						}
 					}
+				},
+				"exai.multiProvider.telemetry": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable telemetry for multi-provider framework",
+					"scope": "application"
 				}
 			}
+		},
+		"commands": [
+			{
+				"command": "exai.multiProvider.selectProvider",
+				"title": "Select AI Provider",
+				"category": "ExAI"
+			},
+			{
+				"command": "exai.multiProvider.configureProviders",
+				"title": "Configure AI Providers",
+				"category": "ExAI"
+			},
+			{
+				"command": "exai.multiProvider.showStats",
+				"title": "Show AI Provider Statistics",
+				"category": "ExAI"
+			},
+			{
+				"command": "exai.multiProvider.refreshProviders",
+				"title": "Refresh AI Providers",
+				"category": "ExAI"
+			},
+			{
+				"command": "exai.multiProvider.toggleProvider",
+				"title": "Toggle AI Provider",
+				"category": "ExAI"
+			}
+		],
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "exai.multiProvider.selectProvider",
+					"when": "exai.multiProvider.enable"
+				},
+				{
+					"command": "exai.multiProvider.configureProviders",
+					"when": "exai.multiProvider.enable"
+				},
+				{
+					"command": "exai.multiProvider.showStats",
+					"when": "exai.multiProvider.enable"
+				},
+				{
+					"command": "exai.multiProvider.refreshProviders",
+					"when": "exai.multiProvider.enable"
+				},
+				{
+					"command": "exai.multiProvider.toggleProvider",
+					"when": "exai.multiProvider.enable"
+				}
+			]
 		}
 	}
 }
