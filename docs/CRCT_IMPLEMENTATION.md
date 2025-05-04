@@ -182,10 +182,20 @@ The CRCT provider implements the `IAIProvider` interface:
    ```
    Opens the interactive dependency graph visualization
 
-## Future Enhancements
+## Current Features
+
+1. **Command Integration**: Direct command palette access to CRCT operations 
+2. **Status Bar Integration**: Real-time indicators for CRCT phase and context
+3. **Dependency Graph Visualization**: Interactive visualization of file dependencies
+4. **Context Menus**: Quick access to CRCT functionality through right-click in explorer and editor
+5. **Tracker Management**: Tools for managing main, doc, and mini-trackers
+6. **Phase Management**: UI for controlling CRCT phases (Setup, Strategy, Execution)
+
+## Potential Future Enhancements
 
 1. **Enhanced Graph Visualization**: 3D visualization for complex dependency structures
 2. **Real-time Dependency Updates**: Live updates to dependency information during editing
 3. **Integration with Language Servers**: For more accurate dependency analysis
 4. **ML-based Dependency Prediction**: Using machine learning to predict potential dependencies
 5. **Collaborative Dependency Annotation**: Team-based annotation of dependencies
+6. **Workspace Insights Dashboard**: Analytics on codebase structure and dependencies
