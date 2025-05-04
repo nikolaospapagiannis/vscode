@@ -8,6 +8,7 @@ import { Registry } from 'vs/platform/registry/common/platform';
 import { LifecyclePhase } from 'vs/workbench/services/lifecycle/common/lifecycle';
 import { MultiProviderContribution } from './aiProviders/multiProviderContribution';
 import { CRCTContribution } from './crct/crctContribution';
+import { registerCRCTUIComponents } from 'vs/workbench/contrib/exai/browser/crct/crctUIRegistration';
 
 // Register workbench contributions
 const workbenchRegistry = Registry.as<IWorkbenchContributionsRegistry>(WorkbenchExtensions.Workbench);
@@ -23,3 +24,6 @@ workbenchRegistry.registerWorkbenchContribution(
 	CRCTContribution,
 	LifecyclePhase.Ready
 );
+
+// Register CRCT UI components
+registerCRCTUIComponents();
