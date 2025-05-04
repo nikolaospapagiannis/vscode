@@ -9,6 +9,7 @@ This guide provides detailed information for developers working with the Recursi
 - VS Code codebase
 - TypeScript knowledge
 - Understanding of VS Code extensions
+- Familiarity with VS Code UI components (WebViews, commands, etc.)
 
 ### Code Organization
 
@@ -27,6 +28,20 @@ This guide provides detailed information for developers working with the Recursi
 └── utils/
     ├── cacheManager.ts       # Caching system
     └── batchProcessor.ts     # Parallel processing
+
+/vs/workbench/contrib/exai/browser/crct/
+├── commands/
+│   ├── commandConstants.ts   # Command IDs and constants
+│   ├── crctCommands.ts       # Command registration and handlers
+│   └── menus.ts              # Menu contributions
+├── statusBar/
+│   ├── crctStatusBar.ts      # Status bar contribution
+│   └── progressReporter.ts   # Progress reporting
+├── visualization/
+│   ├── dependencyGraph.ts    # Dependency graph view
+│   ├── graphRenderer.ts      # WebView graph rendering
+│   └── nodeTypes.ts          # Node and edge type definitions
+└── crctUIRegistration.ts     # UI component registration
 ```
 
 ## Core Concepts
@@ -116,8 +131,21 @@ Main service interface for the CRCT system:
 ```typescript
 interface ICRCTService {
   readonly currentPhase: CRCTPhase;
-  readonly onDidChangePhase: Event<CRCTPhase>;
-  readonly onDidChangeDependencies: Event<void>;
+  readonly onPhaseChanged: Event<CRCTPhase>;
+  readonly onDependenciesChanged: Event<void>;
+  readonly onAnalysisStarted: Event<void>;
+  readonly onAnalysisCompleted: Event<void>;
+  readonly onKeyGenerationStarted: Event<void>;
+  readonly onKeyGenerationCompleted: Event<{ total: number }>;
+  readonly onGridUpdateStarted: Event<void>;
+  readonly onGridUpdateCompleted: Event<void>;
+  readonly onActiveContextChanged: Event<string | undefined>;
+
+  readonly keyManager: IKeyManager;
+  readonly dependencyGridManager: IDependencyGridManager;
+  readonly trackerIO: ITrackerIO;
+  readonly cacheManager: ICacheManager;
+  readonly batchProcessor: IBatchProcessor;
   
   initialize(workspaceRoot: URI): Promise<void>;
   changePhase(phase: CRCTPhase): Promise<void>;
@@ -126,8 +154,9 @@ interface ICRCTService {
   addDependency(tracker: URI | string, sourceKey: string, targetKeys: string[], dependencyType: DependencyType): Promise<void>;
   removeKey(tracker: URI | string, key: string): Promise<void>;
   executeMUP(): Promise<void>;
-  getActiveContext(): Promise<string>;
-  updateActiveContext(content: string): Promise<void>;
+  getActiveContext(): Promise<string | undefined>;
+  setActiveContext(contextName: string): Promise<void>;
+  clearActiveContext(): Promise<void>;
 }
 ```
 
@@ -137,8 +166,9 @@ Interface for the key management system:
 
 ```typescript
 interface IKeyManager {
-  generateKeys(rootPaths: string[], excludedDirs?: Set<string>, excludedExtensions?: Set<string>, precomputedExcludedPaths?: Set<string>): Promise<{ pathToKeyInfo: Map<string, KeyInfo>; newKeys: KeyInfo[] }>;
-  getKeyFromPath(path: string): Promise<string | undefined>;
+  generateKeys(rootPaths: string[] | URI[], excludedDirs?: Set<string>, excludedExtensions?: Set<string>, precomputedExcludedPaths?: Set<string>): Promise<{ pathToKeyInfo: Map<string, KeyInfo>; newKeys: KeyInfo[] }>;
+  getKeyForPath(path: string | URI): Promise<KeyInfo | undefined>;
+  getKeyForString(key: string): Promise<KeyInfo | undefined>;
   getPathFromKey(key: string, contextPath?: string): Promise<string | undefined>;
   validateKey(key: string): boolean;
   sortKeyStringsHierarchically(keys: string[]): string[];
@@ -157,6 +187,22 @@ interface IDependencyGridManager {
   getDependenciesFromGrid(grid: Record<string, string>, key: string, keys: string[]): Record<DependencyType, string[]>;
   validateGrid(grid: Record<string, string>, keys: string[]): boolean;
   formatGridForDisplay(grid: Record<string, string>, keys: string[]): string;
+  updateGrid(): Promise<void>;
+}
+```
+
+### IDependencyGraphView
+
+Interface for the dependency graph visualization:
+
+```typescript
+interface IDependencyGraphView {
+  showDependenciesForKey(key: KeyInfo): Promise<void>;
+  showFullDependencyGraph(): Promise<void>;
+  highlightNode(nodeId: string): void;
+  centerOnNode(nodeId: string): void;
+  readonly onNodeSelected: Event<string>;
+  readonly onNodeNavigateTo: Event<string>;
 }
 ```
 
@@ -179,6 +225,19 @@ interface IDependencyGridManager {
 
 3. Update dependency processing in `getDependenciesFromGrid` in `dependencyGrid.ts`.
 
+4. Add visualization support in `nodeTypes.ts`:
+   ```typescript
+   export const edgeColors = {
+     // ... existing types
+     [DependencyType.NewType]: new ThemeColor('crct.newTypeEdge')
+   };
+   
+   export const dependencyIcons = {
+     // ... existing types
+     [DependencyType.NewType]: 'codicon-symbol-misc' // Choose appropriate icon
+   };
+   ```
+
 ### Adding a New Phase
 
 1. Update the `CRCTPhase` enum in `types.ts`:
@@ -194,6 +253,48 @@ interface IDependencyGridManager {
 2. Update phase transition logic in `changePhase` in `crctService.ts`.
 
 3. Implement phase-specific functionality in `crctProvider.ts`.
+
+4. Update status bar phase indicator in `crctStatusBar.ts`:
+   ```typescript
+   private getPhaseStatusEntry(): IStatusbarEntry {
+     // ... existing phases
+     case CRCTPhase.NEW_PHASE:
+       text = '$(symbol-misc) CRCT: New Phase';
+       tooltip = 'CRCT is in new phase. Click to view dependency graph.';
+       color = new ThemeColor('statusBarItem.infoBackground');
+       break;
+     // ...
+   }
+   ```
+
+### Adding a New Command
+
+1. Add command constants in `commandConstants.ts`:
+   ```typescript
+   export const NEW_COMMAND_ID = 'crct.newCommand';
+   export const NEW_COMMAND_TITLE = 'Execute New Operation';
+   ```
+
+2. Implement command handler in `crctCommands.ts`:
+   ```typescript
+   CommandsRegistry.registerCommand(CommandConstants.NEW_COMMAND_ID, async () => {
+     // Command implementation
+   });
+   ```
+
+3. Register command in menu system in `menus.ts`:
+   ```typescript
+   MenuRegistry.appendMenuItem(MenuId.CommandPalette, {
+     command: {
+       id: CommandConstants.NEW_COMMAND_ID,
+       title: {
+         value: `${CommandConstants.CRCT_COMMAND_CATEGORY}: ${CommandConstants.NEW_COMMAND_TITLE}`,
+         original: `${CommandConstants.CRCT_COMMAND_CATEGORY}: ${CommandConstants.NEW_COMMAND_TITLE}`
+       },
+       category: CommandConstants.CRCT_COMMAND_CATEGORY
+     }
+   });
+   ```
 
 ## Performance Considerations
 
@@ -246,6 +347,77 @@ Enable debug logging by configuring the log level:
 logService.setLevel(LogLevel.Debug);
 ```
 
+## UI Development
+
+### Adding WebView Components
+
+1. Create HTML template in the WebView renderer:
+   ```typescript
+   private getHtmlForWebview(): string {
+     return `<!DOCTYPE html>
+     <html lang="en">
+     <head>
+       <meta charset="UTF-8">
+       <title>CRCT Visualization</title>
+       <style>
+         /* CSS styles here */
+       </style>
+     </head>
+     <body>
+       <div id="container"></div>
+       <script>
+         // WebView JavaScript here
+       </script>
+     </body>
+     </html>`;
+   }
+   ```
+
+2. Handle messages between extension and WebView:
+   ```typescript
+   // In extension
+   this.webview.postMessage({ type: 'updateData', data: someData });
+   
+   // In WebView
+   window.addEventListener('message', event => {
+     const message = event.data;
+     if (message.type === 'updateData') {
+       // Handle the data
+     }
+   });
+   ```
+
+3. Register the WebView with VS Code:
+   ```typescript
+   const viewContainer = Registry.as<IViewContainerRegistry>(ViewContainerExtensions.ViewContainersRegistry)
+     .registerViewContainer({
+       id: 'crct.dependencyGraph',
+       title: localize('crct.graph.title', "Dependency Graph"),
+       icon: 'codicon-references',
+       ctorDescriptor: new SyncDescriptor(YourViewContainerClass)
+     }, ViewContainerLocation.Sidebar);
+   ```
+
+### Styling UI Components
+
+1. Follow VS Code theme colors:
+   ```typescript
+   const nodeColor = new ThemeColor('crct.nodeColor');
+   ```
+
+2. Use VS Code's CSS variables in WebViews:
+   ```css
+   body {
+     background-color: var(--vscode-editor-background);
+     color: var(--vscode-editor-foreground);
+   }
+   ```
+
+3. Use codicons for consistent iconography:
+   ```typescript
+   const icon = '$(references)'; // References icon
+   ```
+
 ## Contributing
 
 ### Adding New Features
@@ -262,3 +434,4 @@ When adding new features, update:
 1. Interface documentation in code
 2. This developer guide
 3. `CRCT_IMPLEMENTATION.md` for high-level changes
+4. `CRCT_VISUALIZATION_DESIGN.md` for UI changes

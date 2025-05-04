@@ -9,27 +9,27 @@ The Recursive Chain-of-Thought System (CRCT) enhances VS Code's AI capabilities 
 The CRCT system consists of several key components:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      CRCT System                            │
-├───────────┬───────────────────────────┬─────────────────────┤
-│           │                           │                     │
-│  Core     │     Service Layer         │  Integration        │
-│Components │                           │  Components         │
-│           │                           │                     │
-├───────────┼───────────────────────────┼─────────────────────┤
-│KeyManager │                           │                     │
-│           │                           │                     │
-│Dependency │     CRCTService           │ CRCTProvider        │
-│Grid       │                           │                     │
-│           │                           │                     │
-│TrackerIO  │                           │ CRCTContribution    │
-│           │                           │                     │
-├───────────┼───────────────────────────┼─────────────────────┤
-│           │                           │                     │
-│ Utility   │     Cache System          │ Multi-Provider      │
-│Components │                           │ Integration         │
-│           │                           │                     │
-└───────────┴───────────────────────────┴─────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           CRCT System                                   │
+├───────────┬───────────────────────────┬─────────────────┬──────────────┤
+│           │                           │                 │              │
+│  Core     │     Service Layer         │  Integration    │ Visualization│
+│Components │                           │  Components     │  & UI        │
+│           │                           │                 │              │
+├───────────┼───────────────────────────┼─────────────────┼──────────────┤
+│KeyManager │                           │                 │ Command      │
+│           │                           │                 │ Integration  │
+│Dependency │     CRCTService           │ CRCTProvider    │              │
+│Grid       │                           │                 │ Status Bar   │
+│           │                           │                 │ Integration  │
+│TrackerIO  │                           │ CRCTContribution│              │
+│           │                           │                 │ Dependency   │
+├───────────┼───────────────────────────┼─────────────────┤ Visualization│
+│           │                           │                 │              │
+│ Utility   │     Cache System          │ Multi-Provider  │ Context      │
+│Components │                           │ Integration     │ Menus        │
+│           │                           │                 │              │
+└───────────┴───────────────────────────┴─────────────────┴──────────────┘
 ```
 
 ### Core Components
@@ -49,6 +49,13 @@ The CRCT system consists of several key components:
 1. **CRCT Provider**: Implements the IAIProvider interface to expose CRCT to VS Code
 2. **CRCT Contribution**: Workbench contribution for initialization
 3. **Multi-Provider Integration**: Integration with the existing AI provider framework
+
+### Visualization and UI Components
+
+1. **Command Integration**: Exposes CRCT operations through VS Code commands
+2. **Status Bar Integration**: Shows CRCT phase and context information in the status bar
+3. **Dependency Visualization**: Interactive graph for visualizing file dependencies
+4. **Context Menus**: Direct access to CRCT functionality through explorer and editor context menus
 
 ### Utility Components
 
@@ -82,11 +89,37 @@ The CRCT system operates in three distinct phases:
 2. **Strategy**: For planning and task decomposition
 3. **Execution**: For task execution and code generation
 
+### Command Integration
+
+The CRCT system exposes commands to VS Code for user interaction:
+
+- **Command Registration**: Commands registered through VS Code's command system
+- **Command Palette Integration**: CRCT commands available through the command palette
+- **Command Handlers**: Implementations that connect commands to CRCT functionality
+
+### Status Bar Integration
+
+Status indicators provide at-a-glance information about CRCT:
+
+- **Phase Indicator**: Shows the current CRCT phase (Setup, Strategy, Execution)
+- **Context Indicator**: Shows the active context being used
+- **Processing Status**: Indicates when CRCT is processing operations
+
+### Dependency Visualization
+
+Interactive visualization of file and directory dependencies:
+
+- **Graph View**: WebView-based visualization of the dependency graph
+- **Node Types**: Different visualizations for files, directories, and groups
+- **Edge Types**: Visual distinctions for different dependency types
+- **Interaction**: Selection, navigation, and filtering of dependencies
+
 ### Performance Optimizations
 
 - **Caching**: TTL-based caching with dependency invalidation
 - **Batch Processing**: Parallel execution for file analysis
 - **Lazy Loading**: Load components only when needed
+- **Virtualized Rendering**: Efficient rendering of large dependency graphs
 
 ## Integration with VS Code
 
@@ -98,6 +131,10 @@ The implementation integrates with these VS Code services:
 - **Progress API**: For displaying progress during long operations
 - **Configuration Service**: For storing and retrieving settings
 - **Storage Service**: For persisting phase information
+- **Command API**: For registering and invoking commands
+- **Status Bar API**: For showing CRCT status
+- **WebView API**: For dependency graph visualization
+- **Menu API**: For context menu integration
 
 ### AI Provider Framework
 
@@ -111,32 +148,44 @@ The CRCT provider implements the `IAIProvider` interface:
 
 1. **Initial Project Setup**:
    ```
-   > Start.
+   > Start CRCT
    ```
    Initializes the CRCT system in the current workspace
 
 2. **Workspace Analysis**:
    ```
-   > Analyze workspace
+   > CRCT: Analyze Workspace Dependencies
    ```
    Analyzes the workspace to build dependency information
 
 3. **Phase Transitions**:
    ```
-   > Change phase to strategy
+   > CRCT: Change Phase to Strategy
    ```
    Transitions the system to the strategy phase
 
 4. **Dependency Queries**:
    ```
-   > Show dependencies for 1Aa
+   > CRCT: View Dependencies for Current File
    ```
-   Displays dependencies for a specific key
+   Displays dependencies for the current file
+
+5. **Tracker Management**:
+   ```
+   > CRCT: Manage Trackers
+   ```
+   Opens a menu for managing tracker files
+
+6. **Visual Exploration**:
+   ```
+   > CRCT: Show Dependency Graph
+   ```
+   Opens the interactive dependency graph visualization
 
 ## Future Enhancements
 
-1. **UI Visualization**: Graphical representation of dependencies
-2. **Enhanced Reasoning**: Improved recursive reasoning algorithms
+1. **Enhanced Graph Visualization**: 3D visualization for complex dependency structures
+2. **Real-time Dependency Updates**: Live updates to dependency information during editing
 3. **Integration with Language Servers**: For more accurate dependency analysis
-4. **VS Code Commands**: Direct command integration with VS Code UI
-5. **Real-time Updates**: Live updates to dependency information during editing
+4. **ML-based Dependency Prediction**: Using machine learning to predict potential dependencies
+5. **Collaborative Dependency Annotation**: Team-based annotation of dependencies
