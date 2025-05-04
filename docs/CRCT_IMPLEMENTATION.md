@@ -138,11 +138,13 @@ The implementation integrates with these VS Code services:
 
 ### AI Provider Framework
 
-The CRCT provider implements the `IAIProvider` interface:
+The CRCT provider implements the `IAIProvider` interface from the enhanced implementation (`/common/aiProviders/`):
 
 - **Streaming Responses**: Provides streaming output for long-running operations
 - **Context Management**: Enhances context for other providers
 - **Dependency Information**: Makes dependency data available to AI models
+
+> **Implementation Note**: The CRCT system integrates with the enhanced AI provider implementation in `/common/aiProviders/`, which is the current standard for all AI provider integrations in the ExAI project.
 
 ## Usage Scenarios
 

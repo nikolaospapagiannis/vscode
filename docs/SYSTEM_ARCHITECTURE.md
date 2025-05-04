@@ -67,10 +67,12 @@ The Core Services layer implements the business logic of the extension.
 ### 3. AI Providers
 The AI Providers module abstracts interactions with various AI services.
 
-- **Provider Interface**: Common interface for all AI providers.
+- **Provider Interface**: Common interface for all AI providers using the enhanced implementation in `/common/aiProviders/`.
 - **Provider Implementations**: Specific implementations for OpenAI, Claude, Perplexity, etc.
 - **CRCT System**: Implementation of the Recursive Chain-of-Thought system.
 - **GitHub Copilot Integration**: Interface with GitHub Copilot APIs.
+
+> **Implementation Note**: The ExAI project uses the enhanced AI provider implementation in the `/common/aiProviders/` directory, which provides advanced features like streaming responses, provider selection strategies, and robust error handling. The legacy implementation in `/common/ai/` is being phased out.
 
 ### 4. Extension APIs
 This module handles interactions with the VS Code Extension API.

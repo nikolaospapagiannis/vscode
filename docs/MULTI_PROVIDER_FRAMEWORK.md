@@ -6,6 +6,12 @@ The Multi-Provider Framework is a core component of the ExAI system that enables
 
 This document describes the architecture, components, and usage of the Multi-Provider Framework.
 
+> **Implementation Note**: The ExAI project currently has two AI provider implementations:
+> 1. **Enhanced Implementation** (`/common/aiProviders/`) - This is the current standard implementation with advanced features like provider selection strategies, streaming responses, and VS Code integration. **Use this implementation for all new development.**
+> 2. **Legacy Implementation** (`/common/ai/`) - An earlier implementation with a simpler interface. This implementation is being phased out and should not be used for new development.
+> 
+> The documentation below describes the Enhanced Implementation.
+
 ## Architecture
 
 The Multi-Provider Framework follows a layered architecture:
