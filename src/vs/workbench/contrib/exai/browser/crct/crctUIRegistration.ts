@@ -10,13 +10,16 @@ import { LifecyclePhase } from 'vs/workbench/services/lifecycle/common/lifecycle
 import { CRCTCommandsContribution } from './commands/crctCommands';
 import { CRCTStatusBarContribution } from './statusBar/crctStatusBar';
 import { CRCTProgressReporter } from './statusBar/progressReporter';
+import { DependencyGraphViewContribution } from './visualization/dependencyGraph';
 import { registerCRCTMenus } from './commands/menus';
 import { Disposable } from 'vs/base/common/lifecycle';
+import { ILogService } from 'vs/platform/log/common/log';
 
 // This class serves as a coordinator for all UI components of CRCT
 export class CRCTUIContribution extends Disposable {
     constructor(
-        @IInstantiationService private readonly instantiationService: IInstantiationService
+        @IInstantiationService private readonly instantiationService: IInstantiationService,
+        @ILogService private readonly logService: ILogService
     ) {
         super();
         
@@ -24,6 +27,8 @@ export class CRCTUIContribution extends Disposable {
     }
     
     private initialize(): void {
+        this.logService.info('Initializing CRCT UI components');
+        
         // Register commands
         this._register(this.instantiationService.createInstance(CRCTCommandsContribution));
         
@@ -33,8 +38,13 @@ export class CRCTUIContribution extends Disposable {
         // Register progress reporter
         this._register(this.instantiationService.createInstance(CRCTProgressReporter));
         
+        // Register dependency graph view
+        this._register(this.instantiationService.createInstance(DependencyGraphViewContribution));
+        
         // Register menus
         registerCRCTMenus();
+        
+        this.logService.info('CRCT UI components initialized');
     }
 }
 
